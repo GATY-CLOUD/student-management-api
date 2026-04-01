@@ -165,19 +165,14 @@ def stud_tips(student_id):
                 "role" : "user",
                 "content" : f"""You are an expert academic coach specializing in higher education.
 
-                    A student is currently studying {student.course}.
-                    
-                    Generate exactly 2 study tips tailored specifically to this course. Each tip must be:
-                    - Practical and immediately actionable
-                    - Specific to the nature of {student.course} (not generic advice)
-                    - Between 2-4 sentences in explanation
-                    
-                    Format your response exactly like this:
-                    - [Tip Title]: [Explanation]
-                    - [Tip Title]: [Explanation]
-                    
-                    Do not add any intro, outro, or extra commentary.
-                    Do not use markdown, asterisks, hashtags, or special formatting. Use plain text only"""
+                A student is currently studying {student.course}.
+                
+                Generate exactly 2 study tips tailored specifically to this course.
+                
+                Return ONLY a JSON object. No explanation. No markdown. No code blocks. No extra text.
+                
+                Exact format:
+                {{"study_tips": [{{"title": "", "explanation": ""}}]}}"""
             }
         ]
         )
@@ -185,16 +180,13 @@ def stud_tips(student_id):
         return jsonify({"Error": str(e)}), 500
 
 # extracting the text response
+    raw = response.message.content
     try:
-        tips = response.message.content
-    except Exception:
-        return jsonify({"Error": "Failed to parse AI response"}), 500
+        parsed = parse_ollama_json(raw)
+        return jsonify(parsed), 200
+    except json.JSONDecodeError:
+        return jsonify({"error": "AI returned invalid JSON", "raw": raw}), 500
 
-    return jsonify({
-        "name" : student.name,
-        "course" : student.course,
-        "Study-tips" : tips
-    })
 
 
 @stud_app.route("/students/<int:student_id>/career-paths", methods= ["POST"])
@@ -244,7 +236,7 @@ def career_paths(student_id):
         return jsonify(parsed), 200
 
     except json.JSONDecodeError:
-        return jsonify({"error": "AI returned invalid JSON", "raw": raw}), 500
+        return jsonify({"error": "AI returned invalid JSON", "raw": careers}), 500
 
 
 
