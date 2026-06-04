@@ -53,6 +53,9 @@ and provides AI-powered academic insights using Ollama.
     }
   ]
 }
+## Updates
+- Added GitHub webhook integration
+
 
 ## Author
 Ezenwosu Chidera — AI Integration Specialist

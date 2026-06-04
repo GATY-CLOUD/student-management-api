@@ -3,15 +3,17 @@ from dotenv import load_dotenv
 load_dotenv()
 from ollama import Client
 import json
-import re
+import re, hmac, hashlib
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from webhook_utils import send_webhook
 
 stud_app = Flask(__name__)
 # database setup
 stud_app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///gaty3.db"
 # creating database object
 db = SQLAlchemy(stud_app)
+
 
 # name age and course
 class Student(db.Model):
@@ -73,6 +75,8 @@ def add_stud():
 
     try:
         db.session.commit()
+        send_webhook("student_created", new_student.to_dict())
+
     except Exception as e:
         db.session.rollback()
         return jsonify({"Error": str(e)}), 500
@@ -96,6 +100,8 @@ def update_stud(student_id):
 
         try:
             db.session.commit()
+            send_webhook("update_student", student.to_dict())
+
         except Exception as e:
             db.session.rollback()
             return jsonify({"Error": str(e)}), 500
@@ -114,6 +120,8 @@ def del_stud(student_id):
 
         try:
             db.session.commit()
+            send_webhook("delete_student", student.to_dict())
+
         except Exception as e:
             db.session.rollback()
             return jsonify({"Error": str(e)}), 500
@@ -147,12 +155,12 @@ def stud_tips(student_id):
     if not api_key:
         return jsonify({"Error": "API key not configured"}), 500
 
-    OLLAMA_HOST = os.getenv("OLLAMA_HOST")
-    if not OLLAMA_HOST:
+    ollama_host = os.getenv("OLLAMA_HOST")
+    if not ollama_host:
         return jsonify({"Error": "OLLAMA_HOST not configured"}), 500
 
     client = Client(
-        host=OLLAMA_HOST,
+        host=ollama_host,
         headers={"Authorization": "Bearer " + api_key}
     )
 
@@ -198,13 +206,13 @@ def career_paths(student_id):
     if not api_key:
         return jsonify({"Error": "API key not configured"}), 500
 
-    OLLAMA_HOST = os.getenv("ollama_host")
-    if not OLLAMA_HOST:
+    ollama_host = os.getenv("ollama_host")
+    if not ollama_host:
         return jsonify({"Error": "Ollama host not configured"}), 500
 
     try:
         client = Client(
-            host=OLLAMA_HOST,
+            host=ollama_host,
             headers={"Authorization": "Bearer " + api_key}
         )
 
@@ -238,5 +246,100 @@ def career_paths(student_id):
         return jsonify({"error": "AI returned invalid JSON", "raw": careers}), 500
 
 
+
+@stud_app.route("/github_webhooks", methods= ["POST"])
+def github_webhooks():
+    secret = os.getenv("WEBHOOK_SECRET")
+    signature = request.headers.get("X-Hub-Signature-256")
+
+    if not signature:
+        return jsonify({"Error" : "Signature not found"})
+
+
+    raw_body = request.get_json()
+    expected = "sha256=" + hmac.new(
+        secret.encode,
+        raw_body,
+        hashlib.sha256
+    ).hexdigest()
+
+    if not hmac.compare_digest(expected, signature):
+        return jsonify({"Error" : "Invalid Signature"})
+
+
+    event = request.headers.get("X-Github-Event")
+    data = request.get_json()
+
+    if event == "push":
+        pusher = data["pusher"]["name"]
+        commit_message = data["header_commit"]["message"]
+        print(f"Push by {pusher} : {commit_message}")
+
+        return jsonify({"Status" : "Received"}), 200
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 if __name__ == "__main__":
     stud_app.run(debug=True)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

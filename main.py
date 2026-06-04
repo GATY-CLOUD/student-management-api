@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, requests
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 from ollama import Client
@@ -46,7 +46,7 @@ def get_destinations():
 # https://www.thenerdnook.io/destinations/2
 @app.route("/destinations/<int:destination_id>", methods = ["GET"])
 def destination(destination_id):
-    destination1 = Destination.query.get(destination_id)
+    destination1 = db.session.get(destination_id, Destination)
     if destination1:
         return jsonify([destination1.to_dict()])
     else:
@@ -73,7 +73,7 @@ def add_destination():
 def update_destination(destination_id):
     data = request.get_json()
 
-    new_destination = Destination.query.get(destination_id)
+    new_destination = db.session.get(destination_id, Destination)
     if new_destination:
         new_destination.destination = data.get("destination",new_destination.destination)
         new_destination.country = data.get("country",new_destination.country)
@@ -89,7 +89,7 @@ def update_destination(destination_id):
 # DELETE
 @app.route("/destinations/<int:destination_id>", methods = ["DELETE"])
 def del_destination(destination_id):
-    destination2 = Destination.query.get(destination_id)
+    destination2 = db.session.get(destination_id, Destination)
 
     if destination2:
         db.session.delete(destination2)
@@ -104,7 +104,7 @@ def del_destination(destination_id):
 # ADDING THE AI LAYER
 @app.route("/destinations/<int:destination_id>/features", methods =["POST"])
 def features(destination_id):
-    destination3 = Destination.query.get(destination_id)
+    destination3 = db.session.get(destination_id, Destination)
     if not destination3:
         return jsonify({"Error" : "Destination not found"}), 404
     # connecting to ollama's api
